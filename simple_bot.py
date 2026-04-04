@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO)
 
 # Переменные окружения
 TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
-URL = os.environ.get("RENDER_EXTERNAL_URL")  # Render даёт этот адрес автоматически
+URL =  "https://telegram-bot-ancj.onrender.com"   # Render даёт этот адрес автоматически
 PORT = 8000  # Render ожидает порт 8000
 
 # --- Обработчики команд Telegram ---

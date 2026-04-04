@@ -11,33 +11,37 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 
-# Переменные окружения
+# Переменные окружения (всё берётся из настроек Render)
 TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
-URL =  "https://telegram-bot-ancj.onrender.com"   # Render даёт этот адрес автоматически
-PORT = 8000  # Render ожидает порт 8000
+URL = "https://telegram-bot-ancj.onrender.com"  # ВАШ АДРЕС
+PORT = 8000
 
 # --- Обработчики команд Telegram ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Ответ на команду /start"""
-    await update.message.reply_text("Привет! Я бот для генерации картинок! 🎉")
+    await update.message.reply_text("Привет! Я бот для генерации картинок! 🎉\nОтправь мне любой запрос, и я создам изображение.")
 
+# --- Настройка веб-сервера и вебхука ---
 async def main():
     # Создаём приложение Telegram-бота
     app = Application.builder().token(TOKEN).updater(None).build()
     app.add_handler(CommandHandler("start", start))
 
-    # Устанавливаем вебхук (Telegram будет присылать сообщения на этот адрес)
-    await app.bot.set_webhook(url=f"{URL}/telegram", allowed_updates=Update.ALL_TYPES)
-    logging.info(f"Webhook set to {URL}/telegram")
+    # Устанавливаем вебхук
+    webhook_url = f"{URL}/telegram"
+    await app.bot.set_webhook(url=webhook_url, allowed_updates=Update.ALL_TYPES)
+    logging.info(f"Webhook set to {webhook_url}")
 
     # Создаём веб-сервер для приёма сообщений от Telegram
     async def telegram(request: Request) -> Response:
         """Принимает сообщения от Telegram"""
-        await app.update_queue.put(Update.de_json(await request.json(), app.bot))
+        data = await request.json()
+        update = Update.de_json(data, app.bot)
+        await app.update_queue.put(update)
         return Response()
 
     async def health(_: Request) -> PlainTextResponse:
-        """Health check для Render (чтобы сервис не перезапускался)"""
+        """Health check для Render"""
         return PlainTextResponse("OK")
 
     starlette_app = Starlette(routes=[
@@ -47,13 +51,13 @@ async def main():
 
     # Запускаем веб-сервер
     import uvicorn
-    web = uvicorn.Server(uvicorn.Config(starlette_app, host="0.0.0.0", port=PORT, log_level="info"))
-    
+    config = uvicorn.Config(starlette_app, host="0.0.0.0", port=PORT, log_level="info")
+    server = uvicorn.Server(config)
+
     async with app:
         await app.start()
-        await web.serve()
+        await server.serve()
         await app.stop()
 
 if __name__ == "__main__":
     asyncio.run(main())
-      
